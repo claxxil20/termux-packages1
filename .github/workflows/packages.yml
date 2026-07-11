@@ -53,18 +53,18 @@ jobs:
       with:
         fetch-depth: 1000
 
-    - name: Patch Android package name
-      run: |
-        PACKAGE_NAME="${{ github.event.inputs.package_name }}"
-        PACKAGE_NAME="${PACKAGE_NAME:-com.termux}"
+    # - name: Patch Android package name
+      # run: |
+        # PACKAGE_NAME="${{ github.event.inputs.package_name }}"
+        # PACKAGE_NAME="${PACKAGE_NAME:-com.termux}"
     
-        sed -Ei \
-          's|^(TERMUX_APP__PACKAGE_NAME=")com\.termux(")$|\1'"${PACKAGE_NAME}"'\2|' \
-          scripts/properties.sh
+        # sed -Ei \
+          # 's|^(TERMUX_APP__PACKAGE_NAME=")com\.termux(")$|\1'"${PACKAGE_NAME}"'\2|' \
+          # scripts/properties.sh
     
-        sed -Ei \
-          's|^(TERMUX_APP__NAMESPACE=")com\.termux(")$|\1'"${PACKAGE_NAME}"'\2|' \
-          scripts/properties.sh
+        # sed -Ei \
+          # 's|^(TERMUX_APP__NAMESPACE=")com\.termux(")$|\1'"${PACKAGE_NAME}"'\2|' \
+          # scripts/properties.sh
       
     - name: Gather build summary
       id: build-info
