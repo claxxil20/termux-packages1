@@ -302,6 +302,28 @@ jobs:
           . ./scripts/properties.sh
           ./scripts/setup-android-sdk.sh
         '
+
+    - name: List installed Android SDK packages
+      run: |
+        ./scripts/run-docker.sh bash -lc '
+          . ./scripts/properties.sh
+          "$ANDROID_HOME/cmdline-tools/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --list_installed
+        '
+        
+    - name: Inspect SDK contents
+      run: |
+        ./scripts/run-docker.sh bash -lc '
+          . ./scripts/properties.sh
+          echo "ANDROID_HOME=$ANDROID_HOME"
+    
+          echo "=== Platforms ==="
+          ls -1 "$ANDROID_HOME/platforms"
+    
+          echo "=== Build tools ==="
+          ls -1 "$ANDROID_HOME/build-tools"
+        '
+    
+    
     - name: Build packages
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       run: |
