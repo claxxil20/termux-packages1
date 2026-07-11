@@ -293,6 +293,22 @@ jobs:
         size /var/lib
         size /var/
 
+    - name: Debug Android SDK
+      if: ${{ steps.build-info.outputs.skip-building != 'true' }}
+      run: |
+        ./scripts/run-docker.sh -d bash -c '
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_HOME"
+          echo
+          echo "=== Platforms ==="
+          ls -la "$ANDROID_HOME/platforms" || true
+          echo
+          echo "=== Build Tools ==="
+          ls -la "$ANDROID_HOME/build-tools" || true
+          echo
+          echo "=== sdkmanager ==="
+          find "$ANDROID_HOME" -name sdkmanager
     - name: Build packages
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       run: |
