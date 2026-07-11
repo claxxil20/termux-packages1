@@ -66,15 +66,28 @@ fi
 echo "INFO: Using sdkmanager ... $SDK_MANAGER"
 echo "INFO: Using NDK ... $NDK"
 
+# Ensure ANDROID_HOME has proper permissions
+chmod -R u+w "$ANDROID_HOME" 2>/dev/null || true
+
 yes | $SDK_MANAGER --sdk_root="$ANDROID_HOME" --licenses
 
 # The android platforms are used in the ecj and apksigner packages:
-yes | $SDK_MANAGER --sdk_root="$ANDROID_HOME" \
+yes | $SDK_MANAGER --sdk_root="$ANDROID_HOME" --no_https \
 		"platform-tools" \
 		"build-tools;${TERMUX_ANDROID_BUILD_TOOLS_VERSION}" \
-		"platforms;android-35" \
 		"platforms;android-37" \
+		"platforms;android-35" \
 		"platforms;android-34" \
 		"platforms;android-33" \
 		"platforms;android-28" \
-		"platforms;android-24"
+		"platforms;android-24" || true
+
+# Verify critical platforms are installed
+for api_level in 37 35 33; do
+	if [ ! -d "$ANDROID_HOME/platforms/android-${api_level}" ]; then
+		echo "ERROR: Failed to install Android SDK Platform ${api_level}" >&2
+		exit 1
+	fi
+done
+
+echo "INFO: Android SDK setup completed successfully"
