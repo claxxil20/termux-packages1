@@ -309,7 +309,15 @@ jobs:
           echo "=== sdkmanager ==="
           find "$ANDROID_HOME" -name sdkmanager
         '
-          
+
+    - name: Setup Android SDK
+      run: |
+        ./scripts/run-docker.sh bash -lc '
+          set -e
+          cd "$HOME/termux-packages"
+          . ./scripts/properties.sh
+          ./scripts/setup-android-sdk.sh
+        '
     - name: Build packages
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       run: |
