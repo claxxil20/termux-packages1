@@ -322,7 +322,25 @@ jobs:
           echo "=== Build tools ==="
           ls -1 "$ANDROID_HOME/build-tools"
         '
+
+    - name: Verify Android SDK
+      run: |
+        ./scripts/run-docker.sh bash -lc '
+          set -e
+          . ./scripts/properties.sh
     
+          echo "ANDROID_HOME=$ANDROID_HOME"
+    
+          test -d "$ANDROID_HOME/platforms/android-${TERMUX_APP__ANDROID_SDK_API}" \
+            || { echo "Platform missing"; exit 1; }
+    
+          test -d "$ANDROID_HOME/build-tools/$TERMUX_APP__ANDROID_BUILD_TOOLS_VERSION" \
+            || { echo "Build-tools missing"; exit 1; }
+    
+          "$ANDROID_HOME/cmdline-tools/bin/sdkmanager" \
+            --sdk_root="$ANDROID_HOME" \
+            --list_installed
+        '
     
     - name: Build packages
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
