@@ -1,0 +1,163 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: "Android package name (e.g. com.termux)"
+        required: true
+        default: "com.termux"
+        type: string:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Disk space (before)
+        run: |
+          set -euo pipefail
+          df -h /
+
+      - name: Free disk space (lightweight)
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/node
+          sudo rm -rf /usr/local/share/powershell
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          docker image prune --all --force || true
+          docker builder prune --all --force || true
+          df -h /
+
+      - name: Move Docker data-root to /mnt/docker
+        run: |
+          set -euo pipefail
+          DOCKER_ROOT="/mnt/docker"
+          sudo systemctl stop docker
+          sudo mkdir -p "$DOCKER_ROOT"
+          if [ -d /var/lib/docker ] && [ -n "$(ls -A /var/lib/docker 2>/dev/null || true)" ]; then
+            sudo rsync -aHAX --delete /var/lib/docker/ "$DOCKER_ROOT/" || true
+          fi
+          echo "{\"data-root\": \"$DOCKER_ROOT\"}" | sudo tee /etc/docker/daemon.json
+          sudo systemctl start docker
+          docker info | sed -n '1,40p'
+          df -h /
+
+      - name: Disk space (after)
+        run: |
+          set -euo pipefail
+          df -h /
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      # Restore the termux-packages clone (source + scripts) from a previous run.
+      - name: Restore termux-packages cache
+        id: cache-termux
+        uses: actions/cache@v4
+        with:
+          path: termux-packages
+          key: termux-packages-clone
+
+      # Restore the actual build state: downloaded sources, standalone toolchain,
+      # and per-package build directories. This lives in $HOME/.termux-build
+      # (TERMUX_TOPDIR) and is what gets bind-mounted into the container below.
+      # Caching this — not just the repo clone — is what lets a rerun skip
+      # packages it already finished.
+      - name: Restore termux build-state cache
+        id: cache-buildstate
+        uses: actions/cache@v4
+        with:
+          path: ~/.termux-build
+          key: termux-buildstate-aarch64
+
+      # Clone on a cache miss; pull on a cache hit so we're not rebuilding from zero
+      # but still pick up upstream changes.
+      - name: Clone or update termux-packages
+        run: |
+          sudo apt install git -y
+          if [ "${{ steps.cache-termux.outputs.cache-hit }}" != "true" ]; then
+            git clone https://github.com/termux/termux-packages.git
+          else
+            cd termux-packages
+            git pull
+            cd ..
+          fi
+          mkdir -p ~/.termux-build
+
+      # Patch the app package name, then build the bootstrap inside their
+      # Docker container. We mount ONLY $HOME/.termux-build into the container
+      # (not /data — that flag mounts a real host /data owned by the runner
+      # user, which the container's builder user can't write into, causing
+      # "Permission denied" on /data/TERMUX_ARCH). chmod 777 sidesteps a
+      # uid mismatch between the container's builder user and the host's
+      # runner user for the one directory we do mount.
+      # Output goes through a pseudo-TTY into build.log to avoid buffering
+      # weirdness in run-docker.sh, and the full transcript is uploaded
+      # regardless of live-log truncation.
+      - name: Build bootstrap
+        run: |
+          cd termux-packages
+          sed -i "s|com.termux|${{ github.event.inputs.package_name }}|g" scripts/properties.sh
+          mkdir -p ~/.termux-build
+          chmod -R 777 ~/.termux-build
+          export TERMUX_DOCKER_RUN_EXTRA_ARGS="--volume ${HOME}/.termux-build:/home/builder/.termux-build"
+          cmd_str="./scripts/run-docker.sh -d ./scripts/build-bootstraps.sh --architectures aarch64"
+          script -q -e -f -c "$cmd_str" ../build.log
+
+      # Always upload the full build log as an artifact, regardless of success
+      # or failure, so the untruncated output is available even if the live
+      # Actions UI shows a truncation notice.
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+
+      # Save the updated termux-packages dir back to cache.
+      - name: Save termux-packages cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: termux-packages
+          key: termux-packages-clone
+
+      # Save the updated build state back to cache — this is the step that
+      # actually prevents re-doing an hour of compilation on the next run.
+      - name: Save termux build-state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.termux-build
+          key: termux-buildstate-aarch64
+
+      # Upload any zip files produced in the termux-packages root as a workflow artifact
+      - name: Upload bootstrap zip(s)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-aarch64
+          path: termux-packages/*.zip
+          if-no-files-found: error
+          

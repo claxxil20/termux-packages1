@@ -20,6 +20,11 @@ on:
       packages:
         description: "A space-separated names of packages selected for rebuilding"
         required: true
+      package_name:
+        description: "Android package name (e.g. com.termux)"
+        required: true
+        default: "com.termux"
+        type: string
       free-space:
         description: "Free space even if not building large package (useful when building a large number of packages)"
         type: boolean
@@ -36,17 +41,29 @@ concurrency:
 jobs:
   build:
     permissions:
-      contents: read # actions/upload-artifact doesn't need contents: write
+      contents: read
     runs-on: ubuntu-26.04
     strategy:
       matrix:
-        target_arch: [aarch64, arm, i686, x86_64]
+        target_arch: [aarch64]
       fail-fast: false
     steps:
     - name: Clone repository
       uses: actions/checkout@v7
       with:
         fetch-depth: 1000
+
+    - name: Patch Android package name
+      run: |
+        PACKAGE_NAME="${{ github.event.inputs.package_name }}"
+        PACKAGE_NAME="${PACKAGE_NAME:-com.termux}"
+        sed -i "s|com.termux|${PACKAGE_NAME}|g" scripts/properties.sh
+
+    - name: Gather build summary
+      id: build-info
+      env:
+        MANUAL_INPUT_PACKAGES: ${{ github.event.inputs.packages }}
+      run: |
 
     - name: Gather build summary
       id: build-info
