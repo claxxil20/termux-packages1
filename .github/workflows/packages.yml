@@ -294,7 +294,6 @@ jobs:
         size /var/
 
     - name: Debug Android SDK
-      if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       run: |
         ./scripts/run-docker.sh -d bash -c '
           echo "ANDROID_HOME=$ANDROID_HOME"
@@ -309,6 +308,8 @@ jobs:
           echo
           echo "=== sdkmanager ==="
           find "$ANDROID_HOME" -name sdkmanager
+        '
+          
     - name: Build packages
       if: ${{ steps.build-info.outputs.skip-building != 'true' }}
       run: |
