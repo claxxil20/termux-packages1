@@ -300,7 +300,18 @@ jobs:
           set -e
           cd "$HOME/termux-packages"
           . ./scripts/properties.sh
+    
           ./scripts/setup-android-sdk.sh
+    
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME/platforms/android-35" || {
+            echo "Platform missing"
+            exit 1
+          }
+          test -d "$ANDROID_HOME/build-tools/37.0.0" || {
+            echo "Build tools missing"
+            exit 1
+          }
         '
 
     - name: List installed Android SDK packages
