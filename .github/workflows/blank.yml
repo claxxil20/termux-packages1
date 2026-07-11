@@ -17,7 +17,7 @@ on:
         description: "Android package name (e.g. com.termux)"
         required: true
         default: "com.termux"
-        type: string:
+        type: string
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
